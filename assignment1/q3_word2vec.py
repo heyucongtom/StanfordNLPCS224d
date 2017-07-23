@@ -68,20 +68,23 @@ def softmaxCostAndGradient(predicted, target, outputVectors, dataset):
     out = softmax(score)
 
     softmax_cost = np.sum( -y * np.log(out))
+    # print(softmax_cost)
 
     dout = out - y
+    # print(dout)
     gradPred = np.dot(dout, outputVectors)
-    grad = np.dot(dout.T, predicted)
+    # print(dout.shape, predicted.shape, outputVectors.shape)
+    grad = np.outer(dout, predicted)
     ### END YOUR CODE
 
-    return cost, gradPred, grad
+    return softmax_cost, gradPred, grad
 
 
 def getNegativeSamples(target, dataset, K):
     """ Samples K indexes which are not the target """
 
     indices = [None] * K
-    for k in xrange(K):
+    for k in np.arange(K):
         newidx = dataset.sampleTokenIdx()
         while newidx == target:
             newidx = dataset.sampleTokenIdx()
@@ -103,6 +106,10 @@ def negSamplingCostAndGradient(predicted, target, outputVectors, dataset,
     Arguments/Return Specifications: same as softmaxCostAndGradient
     """
 
+    cost = 0.0
+    grad = np.zeros_like(outputVectors)
+    gradPred = np.zeros_like(predicted)
+
     # Sampling of indices is done for you. Do not modify this if you
     # wish to match the autograder and receive points!
     indices = [target]
@@ -110,9 +117,11 @@ def negSamplingCostAndGradient(predicted, target, outputVectors, dataset,
 
     ### YOUR CODE HERE
     val = sigmoid(np.dot(predicted.reshape(-1), outputVectors[target].T))
-    cost = 0. - np.log(val)
+    cost -= np.log(val)
     grad[target] = predicted * (val - 1) # J/u0 = (sigm(u0vc) - 1) * vc
     gradPred += (val - 1) * outputVectors[target] # J/v_c = (sigm(u0vc) - 1) * u0
+
+    neg_samples = []
 
     for i in range(K):
         j = dataset.sampleTokenIdx()
@@ -155,8 +164,8 @@ def skipgram(currentWord, C, contextWords, tokens, inputVectors, outputVectors,
     """
 
     cost = 0.0
-    gradIn = np.zeros(inputVectors.shape)
-    gradOut = np.zeros(outputVectors.shape)
+    gradIn = np.zeros(inputVectors.shape) # The V matrix
+    gradOut = np.zeros(outputVectors.shape) # The U matrix which is batch updated.
 
     ### YOUR CODE HERE
     idx = tokens[currentWord]
@@ -193,7 +202,7 @@ def cbow(currentWord, C, contextWords, tokens, inputVectors, outputVectors,
     ### YOUR CODE HERE
     for contextWord in contextWords:
         idx = tokens[contextWord]               # tokens['a'] = 1
-        input_vector = inputVectors[idx:idx+1]   
+        input_vector = inputVectors[idx]   
         c, g_in, g_out = word2vecCostAndGradient(input_vector, tokens[currentWord], outputVectors, dataset)
         cost += c
         gradIn[idx:idx+1, :] += g_in
@@ -229,8 +238,8 @@ def word2vec_sgd_wrapper(word2vecModel, tokens, wordVectors, dataset, C,
             centerword, C1, context, tokens, inputVectors, outputVectors,
             dataset, word2vecCostAndGradient)
         cost += c / batchsize / denom
-        grad[:N/2, :] += gin / batchsize / denom
-        grad[N/2:, :] += gout / batchsize / denom
+        grad[:N//2, :] += gin / batchsize / denom
+        grad[N//2:, :] += gout / batchsize / denom
 
     return cost, grad
 
